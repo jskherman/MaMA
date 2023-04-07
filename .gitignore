@@ -1,5 +1,6 @@
 # Streamlit
 secrets.toml
+*.env
 
 # Python
 
