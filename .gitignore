@@ -1,3 +1,7 @@
+# Others
+scratch/
+test.ipynb
+
 # Streamlit
 secrets.toml
 *.env
