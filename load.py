@@ -189,6 +189,24 @@ def count_alnum_chars(text: str):
     return sum(c.isalnum() for c in text)
 
 
+def classify_malnutrition(alive_status, default_status, has_edema, muac, z_score):
+    """
+    Classify malnutrition status based on the Alive Status, Default Status,
+    Edema, MUAC, and Z-Score.
+    """
+
+    if not alive_status:
+        return "DEAD"
+    elif default_status:
+        return "DEFAULT"
+    elif z_score < -3 or muac < 11.5 or has_edema:
+        return "SEVERE"
+    elif (-3 <= z_score < -2) or (11.5 <= muac < 12.5):
+        return "MODERATE"
+    else:
+        return "NORMAL"
+
+
 def load_testdata(num: int = 30, type: str = "polars"):
     """
     Load test data for the MaMA system.
