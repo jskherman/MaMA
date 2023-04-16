@@ -2,10 +2,11 @@ import datetime as dt
 import uuid
 
 import pandas as pd
+import plotly.express as px
 import polars as pl
 import streamlit as st
 
-from load import init_page, load_brand, load_ph_location_data
+from load import classify_malnutrition, init_page, load_brand, load_ph_location_data
 
 init_page(
     pg_title="Profile Analytics",
@@ -128,16 +129,16 @@ if "patient_names" not in st.session_state:
 if "select_pdf" not in st.session_state:
     st.session_state["select_pdf"] = pl.DataFrame([{}])
 
-global profile_data
-global filtered_patient_data
-global show_data_df
-global patient_names
+# global profile_data
+# global filtered_patient_data
+# global show_data_df
+# global patient_names
 
-profile_found = False
+# profile_found = False
 filtered_patient_data = patient_data
-show_data_df = patient_data.to_pandas()
-patient_names = []
-filtered_patient_data = patient_data
+# show_data_df = patient_data.to_pandas()
+# patient_names = []
+# filtered_patient_data = patient_data
 
 # def search_profile(patient_data, data_filter):
 
@@ -340,24 +341,31 @@ with st.expander("Search Profile", expanded=True):
 
     st.divider()
 
-    if filtered_patient_data.height == 0:
+    if st.session_state["filtered_patient_data"].height == 0:
         st.error("Error: No data found.")
-    elif filtered_patient_data.height == patient_data.height:
+        profile_found = False
+    elif st.session_state["filtered_patient_data"].height == patient_data.height:
         st.info("No filter applied. Please apply one.")
+        profile_found = False
+        st.session_state["profile_found"] = profile_found
     else:
-        filter_df = filtered_patient_data
+        filter_df = st.session_state["filtered_patient_data"]
         if filter_df.height == 1:
             st.success("Profile found!")
             profile_found = True
+            st.session_state["profile_found"] = profile_found
             pid = filter_df["ID"][0]
+            st.session_state["pid"] = pid
         else:
             st.error("Error: Please narrow down your search to only one result.")
             profile_found = False
+            st.session_state["profile_found"] = profile_found
 
         st.dataframe(filter_df.to_pandas().drop(columns=["ID"]))
 
 
-if profile_found:
+if st.session_state["profile_found"]:
+    pid = st.session_state["pid"]
     pdata = patient_data.filter(pl.col("ID") == pid)
     fname = pdata["First Name"][0]
     mname = pdata["Middle Name"][0]
@@ -375,6 +383,19 @@ if profile_found:
     precords = patient_records.filter(pl.col("PID") == pid).sort(
         "Timestamp", descending=True
     )
+    precords = precords.with_columns(
+        pl.struct(["Alive", "Default", "Edema", "MUAC (cm)", "Z-score"])
+        .apply(
+            lambda cols: classify_malnutrition(
+                cols["Alive"],
+                cols["Default"],
+                cols["Edema"],
+                cols["MUAC (cm)"],
+                cols["Z-score"],
+            )
+        )
+        .alias("Malnutrition Status")
+    )
     recent_record = precords[0]
     last_record = precords[1]
     recent_record_date = dt.date.fromisoformat(recent_record["Timestamp"][0])
@@ -385,6 +406,7 @@ if profile_found:
     status_alive = recent_record["Alive"][0]
     status_default = recent_record["Default"][0]
     status_edema = recent_record["Edema"][0]
+    status_nutrition = recent_record["Malnutrition Status"][0]
 
     st.header(f"{fname.capitalize()}'s Profile")
 
@@ -453,18 +475,87 @@ if profile_found:
     )
 
     r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-    r2c1.metric(
-        label="Weight (kg)",
-        value=current_weight,
-        delta=round(current_weight - last_record["Weight (kg)"][0], 2),
+    r2c1.metric(label="Alive", value=("YES" if status_alive else "NO"))
+    r2c2.metric(label="Default", value=("YES" if status_default else "NO"))
+    r2c3.metric(label="Edema", value=("YES" if status_edema else "NO"))
+    r2c4.metric(
+        label="Malnutrition Status",
+        value=(
+            status_nutrition
+            if status_nutrition != "DEAD" and status_nutrition != "DEFAULT"
+            else "—"
+        ),
     )
-    r2c2.metric(
-        label="Height (cm)",
-        value=current_height,
-        delta=round(current_height - last_record["Height (cm)"][0], 2),
+
+    if status_alive and not status_default:
+        r3c1, r3c2, r3c3, r3c4 = st.columns(4)
+        r3c1.metric(
+            label="Weight (kg)",
+            value=current_weight,
+            delta=round(current_weight - last_record["Weight (kg)"][0], 2),
+        )
+        r3c2.metric(
+            label="Height (cm)",
+            value=current_height,
+            delta=round(current_height - last_record["Height (cm)"][0], 2),
+        )
+        r3c3.metric(
+            label="MUAC (cm)",
+            value=current_muac,
+            delta=round(current_muac - last_record["MUAC (cm)"][0], 2),
+        )
+        r3c4.metric(
+            label="Z-score",
+            value=round(recent_record["Z-score"][0], 2),
+            delta=round(recent_record["Z-score"][0] - last_record["Z-score"][0], 2),
+        )
+
+    show_records = precords.drop(
+        columns=[
+            "ID",
+            "PID",
+            "Sex",
+            "Region",
+            "Province",
+            "Municipality/City",
+            "Barangay",
+        ]
+    ).to_pandas()
+
+    st.header(f"{fname.capitalize()}'s Graph")
+    graph_choice = st.selectbox(
+        label="Select a graph to view",
+        options=[
+            "Weight (kg)",
+            "Height (cm)",
+            "MUAC (cm)",
+            "Edema",
+            "Malnutrition Status",
+        ],
+        index=0,
     )
-    r2c3.metric(
-        label="MUAC (cm)",
-        value=current_muac,
-        delta=round(current_muac - last_record["MUAC (cm)"][0], 2),
+
+    if graph_choice == "Edema":
+        graph_df = show_records[["Timestamp", graph_choice]]
+        graph_df[graph_choice] = graph_df[graph_choice].apply(
+            lambda x: "YES" if x else "NO"
+        )
+
+    else:
+        graph_df = show_records[["Timestamp", graph_choice]]
+
+    fig1 = px.bar(
+        graph_df,
+        x="Timestamp",
+        y=graph_choice,
+        color=graph_choice,
+        color_discrete_sequence=px.colors.qualitative.Pastel,
+        title=f"{fname.capitalize()}'s {graph_choice} over time",
     )
+    if graph_choice == "Edema":
+        fig1.update_yaxes(autorange="reversed")
+
+    st.plotly_chart(fig1, use_container_width=True)
+
+    with st.expander("Show All Records"):
+        st.dataframe(show_records)
