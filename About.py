@@ -2,7 +2,7 @@ import pandas as pd
 import polars as pl
 import streamlit as st
 
-from load import init_page, load_brand, load_testdata
+from load import init_page, load_brand, load_testdata, load_testrecords
 
 init_page(pg_title="About MaMA", pg_icon="🤗", title="About MaMA")
 
@@ -24,7 +24,7 @@ st.markdown(
 
 # Step 1: Load test data
 
-st.markdown("## Step 1: Load Test Data")
+st.markdown("## Load Test Data?")
 if st.button("Load Test Data"):
     st.markdown(
         """- You can click inside of the table and press
@@ -35,6 +35,16 @@ if st.button("Load Test Data"):
                 <kbd>⌘ Cmd</kbd>+<kbd>C</kbd> in Mac.""",
         unsafe_allow_html=True,
     )
-    st.session_state["pl_data"] = load_testdata(30)
-    st.session_state["pd_data"] = st.session_state["pl_data"].to_pandas()
-    st.write(st.session_state["pd_data"])
+    st.session_state["pl_data"] = load_testdata(100)
+    st.session_state["pl_records"] = load_testrecords(st.session_state["pl_data"], 1000)
+
+if "pl_data" not in st.session_state or "pl_records" not in st.session_state:
+    st.warning("Please load test data first.")
+elif st.session_state["pl_data"] is None or st.session_state["pl_records"] is None:
+    st.warning("Please load test data first.")
+else:
+    st.markdown("### Test Data")
+    st.dataframe(st.session_state["pl_data"].to_pandas())
+
+    st.markdown("### Test Records")
+    st.dataframe(st.session_state["pl_records"].to_pandas())
