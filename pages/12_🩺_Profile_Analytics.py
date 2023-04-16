@@ -138,6 +138,9 @@ patient_names = []
 # def search_profile(patient_data, data_filter):
 
 # Step 2: Filter data for specific patient
+
+st.info("Press enter for the text input to take effect.", icon="ℹ")
+
 c1r1, c2r1 = st.columns(2)
 
 with c1r1:
