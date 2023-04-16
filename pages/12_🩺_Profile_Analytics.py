@@ -448,7 +448,7 @@ if profile_found:
         )
 
     st.markdown(
-        f"## Recent Record: <span style='color:crimson'><u>{recent_record_date.strftime('%B %d, %Y')}</u></span>",
+        f"## Recent Record: <span style='color:crimson;white-space:nowrap;'><u>{recent_record_date.strftime('%B %d, %Y')}</u></span>",
         unsafe_allow_html=True,
     )
 

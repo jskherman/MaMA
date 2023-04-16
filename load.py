@@ -42,7 +42,7 @@ def load_ph_location_data(type="polars"):
 # Filipino Data Provider for Faker library
 class FilipinoDataProvider(BaseProvider):
     # Name suffixes
-    SUFFIXES = ["", "Sr.", "III", "IV", "V", "VI"]
+    SUFFIXES = ["", "JR.", "III", "IV", "V", "VI"]
 
     # Set data types of columns for PH locations
     loc_dtypes = {
