@@ -1,6 +1,7 @@
 import datetime as dt
 import uuid
 
+import pandas as pd
 import polars as pl
 import streamlit as st
 
@@ -124,272 +125,346 @@ if "show_data" not in st.session_state:
     st.session_state["show_data"] = patient_data.to_pandas()
 if "patient_names" not in st.session_state:
     st.session_state["patient_names"] = ""
+if "select_pdf" not in st.session_state:
+    st.session_state["select_pdf"] = pl.DataFrame([{}])
 
 global profile_data
 global filtered_patient_data
 global show_data_df
 global patient_names
 
-profile_data = False
+profile_found = False
 filtered_patient_data = patient_data
 show_data_df = patient_data.to_pandas()
 patient_names = []
+filtered_patient_data = patient_data
 
 # def search_profile(patient_data, data_filter):
 
 # Step 2: Filter data for specific patient
+with st.expander("Search Profile", expanded=True):
+    st.info("Press enter for the text input to take effect.", icon="ℹ")
 
-st.info("Press enter for the text input to take effect.", icon="ℹ")
+    c1r1, c2r1 = st.columns(2)
 
-c1r1, c2r1 = st.columns(2)
+    with c1r1:
+        # Patient First Name
+        patient_first_name = st.text_input(
+            label="First Name*",
+            value="",
+            key="first_name",
+            help="Enter first name.",
+            max_chars=40,
+            placeholder="Example: Juan",
+        )
+        patient_first_name = patient_first_name.strip().lower()
 
-with c1r1:
-    # Patient First Name
-    patient_first_name = st.text_input(
-        label="First Name*",
-        value="",
-        key="first_name",
-        help="Enter first name.",
-        max_chars=40,
-        placeholder="Example: Juan",
-    )
-    patient_first_name = patient_first_name.strip().lower()
+        # Patient Last Name
+        patient_last_name = st.text_input(
+            label="Last Name*",
+            value="",
+            key="last_name",
+            help="Enter last name.",
+            max_chars=40,
+            placeholder="Example: Dela Cruz",
+        )
+        patient_last_name = patient_last_name.strip().lower()
 
-    # Patient Last Name
-    patient_last_name = st.text_input(
-        label="Last Name*",
-        value="",
-        key="last_name",
-        help="Enter last name.",
-        max_chars=40,
-        placeholder="Example: Dela Cruz",
-    )
-    patient_last_name = patient_last_name.strip().lower()
+        patient_sex = st.selectbox(
+            label="Sex (M/F)*",
+            options=["M/F", "M", "F"],
+            index=0,
+            help="Enter sex: Male (M) / Female (F)",
+        )
 
-    patient_sex = st.selectbox(
-        label="Sex (M/F)*",
-        options=["M/F", "M", "F"],
+    with c2r1:
+        # Patient Middle Name
+        patient_middle_name = st.text_input(
+            label="Middle Name",
+            value="",
+            key="middle_name",
+            help="Enter middle name. Leave blank if none.",
+            max_chars=40,
+            placeholder="Example: De la Peña",
+        )
+        patient_middle_name = patient_middle_name.strip().lower()
+
+        # Patient Name Suffix
+        patient_suffix = st.text_input(
+            label="Suffix (Optional)",
+            value="",
+            key="suffix",
+            help="Enter name's suffix. Leave blank if none.",
+            max_chars=8,
+            placeholder="Example: Jr., III, IX, LXXXVIII, etc.",
+        )
+        patient_suffix = patient_suffix.strip().lower()
+
+    patient_region = st.selectbox(
+        label="Region*",
+        options=region_list,
+        help="Select your region.",
+        key="in_region",
         index=0,
-        help="Enter sex: Male (M) / Female (F)",
+        on_change=on_change_region,
     )
 
-with c2r1:
-    # Patient Middle Name
-    patient_middle_name = st.text_input(
-        label="Middle Name",
-        value="",
-        key="middle_name",
-        help="Enter middle name. Leave blank if none.",
-        max_chars=40,
-        placeholder="Example: De la Peña",
-    )
-    patient_middle_name = patient_middle_name.strip().lower()
+    if patient_province not in st.session_state["province_list"]:
+        patient_province = st.session_state["province_list"][0]
 
-    # Patient Name Suffix
-    patient_suffix = st.text_input(
-        label="Suffix (Optional)",
-        value="",
-        key="suffix",
-        help="Enter name's suffix. Leave blank if none.",
-        max_chars=8,
-        placeholder="Example: Jr., III, IX, LXXXVIII, etc.",
-    )
-    patient_suffix = patient_suffix.strip().lower()
-
-patient_region = st.selectbox(
-    label="Region*",
-    options=region_list,
-    help="Select your region.",
-    key="in_region",
-    index=0,
-    on_change=on_change_region,
-)
-
-if patient_province not in st.session_state["province_list"]:
-    patient_province = st.session_state["province_list"][0]
-
-    patient_province = st.selectbox(
-        label="Province*",
-        options=st.session_state["province_list"],
-        help="Select your province.",
-        key="in_province",
-        index=0,
-        on_change=on_change_province,
-    )
-else:
-    patient_province = st.selectbox(
-        label="Province*",
-        options=st.session_state["province_list"],
-        help="Select your province.",
-        key="in_province",
-        index=0,
-        on_change=on_change_province,
-    )
-
-if patient_municity not in st.session_state["municity_list"]:
-    patient_municity = st.session_state["municity_list"][0]
-
-    patient_municity = st.selectbox(
-        label="Municipality/City*",
-        options=st.session_state["municity_list"],
-        help="Select your municipality/city.",
-        key="in_municity",
-        index=0,
-        on_change=on_change_municity,
-    )
-else:
-    patient_municity = st.selectbox(
-        label="Municipality/City*",
-        options=st.session_state["municity_list"],
-        help="Select your municipality/city.",
-        key="in_municity",
-        index=0,
-        on_change=on_change_municity,
-    )
-
-if patient_brgy not in st.session_state["brgy_list"]:
-    patient_brgy = st.session_state["brgy_list"][0]
-    patient_brgy = st.selectbox(
-        label="Barangay*",
-        options=st.session_state["brgy_list"],
-        help="Select your barangay.",
-        key="in_brgy",
-        index=0,
-    )
-else:
-    patient_brgy = st.selectbox(
-        label="Barangay*",
-        options=st.session_state["brgy_list"],
-        help="Select your barangay.",
-        key="in_brgy",
-        index=0,
-    )
-
-data_filter = {
-    "First Name": patient_first_name,
-    "Middle Name": patient_middle_name,
-    "Last Name": patient_last_name,
-    "Suffix": patient_suffix,
-    "Sex": patient_sex,
-    "Region": patient_region,
-    "Province": patient_province,
-    "Municipality/City": patient_municity,
-    "Barangay": patient_brgy,
-}
-
-submitted = st.button(
-    "Search",
-    type="primary",
-    # on_click=search_profile,
-    # args=(patient_data, data_filter),
-)
-
-if submitted:
-    filtered_patient_data = patient_data
-
-    if patient_first_name != "":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("First Name") == patient_first_name
+        patient_province = st.selectbox(
+            label="Province*",
+            options=st.session_state["province_list"],
+            help="Select your province.",
+            key="in_province",
+            index=0,
+            on_change=on_change_province,
         )
-
-    if patient_middle_name != "":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Middle Name") == data_filter["Middle Name"]
-        )
-
-    if patient_last_name != "":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Last Name") == data_filter["Last Name"]
-        )
-
-    if patient_suffix != "":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Suffix") == data_filter["Suffix"]
-        )
-
-    if patient_sex != "" and patient_sex != "M/F":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Sex") == data_filter["Sex"]
-        )
-    elif patient_sex == "M/F":
-        filtered_patient_data = filtered_patient_data
-
-    if patient_region != "" or patient_region != "All Regions":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Region") == data_filter["Region"]
-        )
-
-    if patient_province != "" or patient_province != "All Provinces":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Province") == data_filter["Province"]
-        )
-
-    if patient_municity != "" and patient_municity != "All Municipalities/Cities":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Municipality/City") == data_filter["Municipality/City"]
-        )
-
-    if patient_brgy != "" and patient_brgy != "All Barangays":
-        filtered_patient_data = filtered_patient_data.filter(
-            pl.col("Barangay") == data_filter["Barangay"]
-        )
-
-    if filtered_patient_data.height == 0:
-        st.session_state["profile_data"] = False
     else:
-        st.session_state["profile_data"] = True
+        patient_province = st.selectbox(
+            label="Province*",
+            options=st.session_state["province_list"],
+            help="Select your province.",
+            key="in_province",
+            index=0,
+            on_change=on_change_province,
+        )
+
+    if patient_municity not in st.session_state["municity_list"]:
+        patient_municity = st.session_state["municity_list"][0]
+
+        patient_municity = st.selectbox(
+            label="Municipality/City*",
+            options=st.session_state["municity_list"],
+            help="Select your municipality/city.",
+            key="in_municity",
+            index=0,
+            on_change=on_change_municity,
+        )
+    else:
+        patient_municity = st.selectbox(
+            label="Municipality/City*",
+            options=st.session_state["municity_list"],
+            help="Select your municipality/city.",
+            key="in_municity",
+            index=0,
+            on_change=on_change_municity,
+        )
+
+    if patient_brgy not in st.session_state["brgy_list"]:
+        patient_brgy = st.session_state["brgy_list"][0]
+        patient_brgy = st.selectbox(
+            label="Barangay*",
+            options=st.session_state["brgy_list"],
+            help="Select your barangay.",
+            key="in_brgy",
+            index=0,
+        )
+    else:
+        patient_brgy = st.selectbox(
+            label="Barangay*",
+            options=st.session_state["brgy_list"],
+            help="Select your barangay.",
+            key="in_brgy",
+            index=0,
+        )
+
+    data_filter = {
+        "First Name": patient_first_name,
+        "Middle Name": patient_middle_name,
+        "Last Name": patient_last_name,
+        "Suffix": patient_suffix,
+        "Sex": patient_sex,
+        "Region": patient_region,
+        "Province": patient_province,
+        "Municipality/City": patient_municity,
+        "Barangay": patient_brgy,
+    }
+
+    submitted = st.button(
+        "Search",
+        type="primary",
+        # on_click=search_profile,
+        # args=(patient_data, data_filter),
+    )
+
+    if submitted:
+        filtered_patient_data = patient_data
+
+        if patient_first_name != "":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("First Name") == patient_first_name
+            )
+
+        if patient_middle_name != "":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Middle Name") == data_filter["Middle Name"]
+            )
+
+        if patient_last_name != "":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Last Name") == data_filter["Last Name"]
+            )
+
+        if patient_suffix != "":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Suffix") == data_filter["Suffix"]
+            )
+
+        if patient_sex != "" and patient_sex != "M/F":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Sex") == data_filter["Sex"]
+            )
+
+        if patient_region != "All Regions":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Region") == data_filter["Region"]
+            )
+
+        if patient_province != "All Provinces":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Province") == data_filter["Province"]
+            )
+
+        if patient_municity != "All Municipalities/Cities":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Municipality/City") == data_filter["Municipality/City"]
+            )
+
+        if patient_brgy != "All Barangays":
+            filtered_patient_data = filtered_patient_data.filter(
+                pl.col("Barangay") == data_filter["Barangay"]
+            )
 
         st.session_state["filtered_patient_data"] = filtered_patient_data
-        show_data_df = filtered_patient_data.select(
-            [
-                "First Name",
-                "Middle Name",
-                "Last Name",
-                "Suffix",
-                "Sex",
-                "Region",
-                "Province",
-                "Municipality/City",
-                "Barangay",
-            ]
-        )
-        st.session_state["show_data"] = show_data_df.to_pandas()
 
-        patient_names_df = filtered_patient_data.select(
-            ["First Name", "Middle Name", "Last Name", "Suffix"]
-        )
-        patient_names_df = patient_names_df.with_columns(
-            [
-                pl.col("First Name").apply(
-                    lambda x: " ".join([w.capitalize() for w in x.split()])
-                ),
-                pl.col("Middle Name").apply(
-                    lambda x: " ".join([w.capitalize() for w in x.split()])
-                ),
-                pl.col("Last Name").apply(
-                    lambda x: " ".join([w.capitalize() for w in x.split()])
-                ),
-                pl.col("Suffix").str.to_uppercase(),
-            ]
-        )
-        patient_names_df = patient_names_df.select(
-            [
-                pl.col("First Name")
-                + " "
-                + pl.col("Middle Name")
-                + " "
-                + pl.col("Last Name")
-                + " "
-                + pl.col("Suffix")
-            ]
-        )
-        patient_names = (
-            patient_names_df.get_column("First Name").alias("Full Name").to_list()
-        )
+    st.divider()
 
-        st.session_state["patient_names"] = patient_names
+    if filtered_patient_data.height == 0:
+        st.error("Error: No data found.")
+    elif filtered_patient_data.height == patient_data.height:
+        st.info("No filter applied. Please apply one.")
+    else:
+        filter_df = filtered_patient_data
+        if filter_df.height == 1:
+            st.success("Profile found!")
+            profile_found = True
+            pid = filter_df["ID"][0]
+        else:
+            st.error("Error: Please narrow down your search to only one result.")
+            profile_found = False
+
+        st.dataframe(filter_df.to_pandas().drop(columns=["ID"]))
 
 
-st.markdown(f"`{patient_sex}`")
+if profile_found:
+    pdata = patient_data.filter(pl.col("ID") == pid)
+    fname = pdata["First Name"][0]
+    mname = pdata["Middle Name"][0]
+    lname = pdata["Last Name"][0]
+    psuffix = pdata["Suffix"][0]
 
-filtered_patient_data
+    psex = pdata["Sex"][0]
+    pbirthdate = dt.date.fromisoformat(pdata["Birthdate"][0])
+
+    pregion = pdata["Region"][0]
+    pprovince = pdata["Province"][0]
+    pmunicity = pdata["Municipality/City"][0]
+    pbrgy = pdata["Barangay"][0]
+
+    precords = patient_records.filter(pl.col("PID") == pid).sort(
+        "Timestamp", descending=True
+    )
+    recent_record = precords[0]
+    last_record = precords[1]
+    recent_record_date = dt.date.fromisoformat(recent_record["Timestamp"][0])
+    current_age = round((recent_record_date - pbirthdate).days * 12 / 365.25)
+    current_weight = recent_record["Weight (kg)"][0]
+    current_height = recent_record["Height (cm)"][0]
+    current_muac = recent_record["MUAC (cm)"][0]
+    status_alive = recent_record["Alive"][0]
+    status_default = recent_record["Default"][0]
+    status_edema = recent_record["Edema"][0]
+
+    st.header(f"{fname.capitalize()}'s Profile")
+
+    # r1c1, r1c2, r1c3, r1c4 = st.columns(4)
+    # r1c1.metric(label="First Name", value=fname.capitalize())
+    # r1c2.metric(label="Middle Name", value=mname.capitalize())
+    # r1c3.metric(label="Last Name", value=lname.capitalize())
+    # r1c4.metric(label="Suffix", value=psuffix.upper())
+
+    r1c1, r1c2, r1c3 = st.columns([1, 2, 1])
+
+    with r1c1:
+        st.write("### Name")
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "First Name": fname.capitalize(),
+                        "Middle Name": mname.capitalize(),
+                        "Last Name": lname.capitalize(),
+                        "Suffix": psuffix.upper(),
+                    }
+                ]
+            )
+            .transpose()
+            .rename(columns={0: "Data"})
+        )
+
+    with r1c2:
+        st.write("### Location")
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Region": pregion,
+                        "Province": pprovince,
+                        "Municipality/City": pmunicity,
+                        "Barangay": pbrgy,
+                    }
+                ]
+            )
+            .transpose()
+            .rename(columns={0: "Data"})
+        )
+
+    with r1c3:
+        st.markdown("### Sex and Age")
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Sex": "Male" if psex == "M" else "Female",
+                        "Birthdate": pbirthdate.strftime("%B %d, %Y"),
+                        "Age (months)": current_age,
+                        "Age (years)": round(current_age / 12, 2),
+                    }
+                ]
+            )
+            .transpose()
+            .rename(columns={0: "Data"})
+        )
+
+    st.markdown(
+        f"## Recent Record: <span style='color:crimson'><u>{recent_record_date.strftime('%B %d, %Y')}</u></span>",
+        unsafe_allow_html=True,
+    )
+
+    r2c1, r2c2, r2c3, r2c4 = st.columns(4)
+    r2c1.metric(
+        label="Weight (kg)",
+        value=current_weight,
+        delta=round(current_weight - last_record["Weight (kg)"][0], 2),
+    )
+    r2c2.metric(
+        label="Height (cm)",
+        value=current_height,
+        delta=round(current_height - last_record["Height (cm)"][0], 2),
+    )
+    r2c3.metric(
+        label="MUAC (cm)",
+        value=current_muac,
+        delta=round(current_muac - last_record["MUAC (cm)"][0], 2),
+    )
