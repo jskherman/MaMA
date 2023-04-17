@@ -1,6 +1,7 @@
-streamlit
+streamlit==1.21.0
 polars[all]
 pandas
 plotly
 Faker
 black
+openpyxl
