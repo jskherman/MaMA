@@ -339,7 +339,7 @@ with st.expander("Search Profile", expanded=True):
 
         st.session_state["filtered_patient_data"] = filtered_patient_data
 
-    st.divider()
+    "---"
 
     if st.session_state["filtered_patient_data"].height == 0:
         st.error("Error: No data found.")
@@ -551,6 +551,7 @@ if st.session_state["profile_found"]:
         color=graph_choice,
         color_discrete_sequence=px.colors.qualitative.Pastel,
         title=f"{fname.capitalize()}'s {graph_choice} over time",
+        color_continuous_scale="rdylgn",
     )
     if graph_choice == "Edema":
         fig1.update_yaxes(autorange="reversed")
@@ -558,4 +559,12 @@ if st.session_state["profile_found"]:
     st.plotly_chart(fig1, use_container_width=True)
 
     with st.expander("Show All Records"):
+        csv_records = show_records.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label=f"Download {fname.capitalize()}'s Records (CSV/Excel)",
+            data=csv_records,
+            file_name=f"{lname.upper().replace(' ', '_')}_{dt.date.today().strftime('%Y-%m-%d')}.csv",
+            mime="text/csv",
+        )
+
         st.dataframe(show_records)

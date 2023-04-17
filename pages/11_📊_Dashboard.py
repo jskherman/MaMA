@@ -356,7 +356,7 @@ if not filter_dfu.empty:
 
     # Display graph
     st.divider()
-    st.header(f"Data Time Series")
+    st.header(f"{graph_choice} over Time")
     st.plotly_chart(fig1, use_container_width=True)
 
 else:
