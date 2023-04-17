@@ -17,7 +17,7 @@ st.markdown(
     made by Team NutriBUn for the tracking of various case data of malnutrition
     in the Philippines. This application was originally made in 2022 for the
     first Nutri-Hackathon of the National Nutrition Council of the Philippines
-    but now revised and reinvisioned this time around.
+    but now revised and reinvisioned this time around. Backup app link: [MaMA](https://mama-bu.streamlit.app/).
     """,
     unsafe_allow_html=True,
 )
