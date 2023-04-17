@@ -172,8 +172,8 @@ def load_brand():
 
         st.markdown(
             """
-            <center><strong>Ma</strong>lnutrition&nbsp;<strong>M</strong>
-            onitoring and&nbsp;<strong>A</strong>ssessment&nbsp;System</center>
+            <center><strong>Ma</strong>lnutrition&nbsp;<strong>M</strong>onitoring 
+            and&nbsp;<strong>A</strong>ssessment&nbsp;System</center>
 
             <br><br> Project by Team NutriBUn &copy;&nbsp;2022–2023
             """,
