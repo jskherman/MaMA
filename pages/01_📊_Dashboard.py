@@ -9,7 +9,7 @@ import streamlit as st
 from load import classify_malnutrition, init_page, load_brand, load_ph_location_data
 
 init_page(
-    pg_title="Dashboard",
+    pg_title="MaMA - Dashboard",
     pg_icon="📊",
     title="Dashboard",
     # layout="centered",

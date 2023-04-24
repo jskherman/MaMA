@@ -7,7 +7,7 @@ import streamlit as st
 from load import count_alnum_chars, init_page, load_brand, load_ph_location_data
 
 init_page(
-    pg_title="Form: Personal Info",
+    pg_title="MaMA - Form: Personal Info",
     pg_icon="✍",
     title="Form: Personal Information",
     # layout="centered",

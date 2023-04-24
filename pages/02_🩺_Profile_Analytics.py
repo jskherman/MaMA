@@ -6,11 +6,10 @@ import plotly.express as px
 import polars as pl
 import streamlit as st
 
-from load import (classify_malnutrition, init_page, load_brand,
-                  load_ph_location_data)
+from load import classify_malnutrition, init_page, load_brand, load_ph_location_data
 
 init_page(
-    pg_title="Profile Analytics",
+    pg_title="MaMA - Profile Analytics",
     pg_icon="🩺",
     title="Profile Analytics",
     # layout="centered",

@@ -7,7 +7,7 @@ import streamlit as st
 
 from load import count_alnum_chars, init_page, load_brand, load_ph_location_data
 
-init_page(pg_title="Form: Measurements", pg_icon="📝", title="Form: Measurements")
+init_page(pg_title="MaMA - Form: Measurements", pg_icon="📝", title="Form: Measurements")
 
 # Load brand logo and name in sidebar
 load_brand()
