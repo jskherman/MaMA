@@ -254,7 +254,7 @@ if st.button(label="Submit", type="primary"):
             "Middle Name": patient_middle_name.lower().strip(),
             "Last Name": patient_last_name.lower().strip(),
             "Suffix": patient_suffix.lower().strip(),
-            "Birthdate": patient_birthdate,
+            "Birthdate": patient_birthdate.isoformat(),
             "Sex": patient_sex,
             "Region": patient_region,
             "Province": patient_province,

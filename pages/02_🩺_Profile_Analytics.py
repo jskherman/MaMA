@@ -398,7 +398,10 @@ if st.session_state["profile_found"]:
         .alias("Malnutrition Status")
     )
     recent_record = precords[0]
-    last_record = precords[1]
+    if len(precords) > 1:
+        last_record = precords[1]
+    else:
+        last_record = precords[0]
     recent_record_date = dt.date.fromisoformat(recent_record["Timestamp"][0])
     current_age = round((recent_record_date - pbirthdate).days * 12 / 365.25)
     current_weight = recent_record["Weight (kg)"][0]
