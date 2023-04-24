@@ -130,6 +130,10 @@ else:
         )
         .alias("Malnutrition Status")
     )
+    st.session_state["filter_records"] = filter_records
+
+if "filter_records" not in st.session_state:
+    st.session_state["filter_records"] = None
 
 # Filter patient data by region, province, municipality, and barangay
 with st.expander("Filter by Location"):
@@ -228,138 +232,161 @@ with st.expander("Filter by Location"):
         else:
             st.success(f"Successfully filtered {filter_records.height} records.")
 
-# Choose data to display in graph
-with st.expander("Choose Data"):
-    dcol1, dcol2 = st.columns(2)
-    with dcol1:
-        graph_choice = st.radio(
-            label="Choose status to display in graph",
-            options=["Deaths", "Defaults", "SAM", "MAM", "Normal"],
-            help="Choose status to display in graph.",
-            key="in_graph_choice",
-            index=0,
+
+if not st.session_state["filter_records"].is_empty():
+    # Choose data to display in graph
+    with st.expander("Choose Data"):
+        dcol1, dcol2 = st.columns(2)
+        with dcol1:
+            graph_choice = st.radio(
+                label="Choose status to display in graph",
+                options=["Deaths", "Defaults", "SAM", "MAM", "Normal"],
+                help="Choose status to display in graph.",
+                key="in_graph_choice",
+                index=0,
+            )
+            if graph_choice == "Deaths":
+                filter_stat = "DEAD"
+            elif graph_choice == "Defaults":
+                filter_stat = "DEFAULT"
+            elif graph_choice == "SAM":
+                filter_stat = "SEVERE"
+            elif graph_choice == "MAM":
+                filter_stat = "MODERATE"
+            elif graph_choice == "Normal":
+                filter_stat = "NORMAL"
+
+        with dcol2:
+            period_interval = st.radio(
+                label="Choose period interval",
+                options=["Daily", "Weekly", "Monthly"],
+                help="Choose period interval.",
+                key="in_period_interval",
+                index=2,
+            )
+
+            if period_interval == "Daily":
+                interval = "1d"
+            elif period_interval == "Weekly":
+                interval = "1w"
+            elif period_interval == "Monthly":
+                interval = "1M"
+
+    # Display metrics for active and total cases
+    active_frecords = filter_records.unique("PID").sort("Timestamp")
+    active_sam = active_frecords.filter(
+        pl.col("Malnutrition Status") == "SEVERE"
+    ).height
+    active_mam = active_frecords.filter(
+        pl.col("Malnutrition Status") == "MODERATE"
+    ).height
+    active_normal = active_frecords.filter(
+        pl.col("Malnutrition Status") == "NORMAL"
+    ).height
+    active_dead = active_frecords.filter(pl.col("Malnutrition Status") == "DEAD").height
+    active_default = active_frecords.filter(
+        pl.col("Malnutrition Status") == "DEFAULT"
+    ).height
+
+    total_frecords = filter_records.sort("Timestamp")
+    total_sam = total_frecords.filter(pl.col("Malnutrition Status") == "SEVERE").height
+    total_mam = total_frecords.filter(
+        pl.col("Malnutrition Status") == "MODERATE"
+    ).height
+    total_normal = total_frecords.filter(
+        pl.col("Malnutrition Status") == "NORMAL"
+    ).height
+    total_dead = total_frecords.filter(pl.col("Malnutrition Status") == "DEAD").height
+    total_default = total_frecords.filter(
+        pl.col("Malnutrition Status") == "DEFAULT"
+    ).height
+
+    # Display active and total number of patients
+    st.header("Active and Total Number of Cases")
+    r1c1, r1c2, r1c3, r1c4, r1c5 = st.columns(5)
+    r1c1.metric(label="Active SAM", value=active_sam)
+    r1c2.metric(label="Active MAM", value=active_mam)
+    r1c3.metric(label="Active Normal", value=active_normal)
+    r1c4.metric(label="Active Dead", value=active_dead)
+    r1c5.metric(label="Active Default", value=active_default)
+
+    r2c1, r2c2, r2c3, r2c4, r2c5 = st.columns(5)
+    r2c1.metric(label="Total SAM", value=total_sam)
+    r2c2.metric(label="Total MAM", value=total_mam)
+    r2c3.metric(label="Total Normal", value=total_normal)
+    r2c4.metric(label="Total Dead", value=total_dead)
+    r2c5.metric(label="Total Default", value=total_default)
+
+    filter_df = (
+        filter_records.select(["Timestamp", "Malnutrition Status"])
+        .with_columns(
+            [
+                ((pl.col("Malnutrition Status") == filter_stat) * 1).alias("Count"),
+                (
+                    pl.col("Timestamp")
+                    .str.strptime(pl.Date, "%Y-%m-%d")
+                    .alias("Timestamp")
+                ),
+            ]
         )
-        if graph_choice == "Deaths":
-            filter_stat = "DEAD"
-        elif graph_choice == "Defaults":
-            filter_stat = "DEFAULT"
-        elif graph_choice == "SAM":
-            filter_stat = "SEVERE"
-        elif graph_choice == "MAM":
-            filter_stat = "MODERATE"
-        elif graph_choice == "Normal":
-            filter_stat = "NORMAL"
+        .filter(pl.col("Count") == 1)
+    ).sort("Timestamp", descending=True)
+    filter_dfu = filter_df.to_pandas()
+    filter_dfu["Timestamp"] = pd.to_datetime(filter_dfu["Timestamp"])
+    if not filter_dfu.empty:
+        filter_dfu = filter_dfu.resample(interval, on="Timestamp").sum().fillna(0)
+        # Remove zero values
+        filter_dfu = filter_dfu[filter_dfu["Count"] != 0]
 
-    with dcol2:
-        period_interval = st.radio(
-            label="Choose period interval",
-            options=["Daily", "Weekly", "Monthly"],
-            help="Choose period interval.",
-            key="in_period_interval",
-            index=2,
+        # Calculate 4-week moving average
+        filter_dfu["MA"] = filter_dfu["Count"].rolling(window=4).mean()
+
+        # Display graph
+        fig1 = px.bar(
+            filter_dfu,
+            x=filter_dfu.index,
+            y="Count",
+            title=f"Number of {graph_choice} {period_interval}",
+            labels={
+                "Count": f"Number of {graph_choice}",
+                "Timestamp": f"{period_interval}",
+            },
+        )
+        # Add moving average line
+        fig1.add_scatter(
+            x=filter_dfu.index, y=filter_dfu["MA"], mode="lines", name="MA"
+        )
+        fig1.update_layout(
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list(
+                        [
+                            dict(
+                                count=1, label="1m", step="month", stepmode="backward"
+                            ),
+                            dict(
+                                count=6, label="6m", step="month", stepmode="backward"
+                            ),
+                            dict(count=1, label="YTD", step="year", stepmode="todate"),
+                            dict(count=1, label="1y", step="year", stepmode="backward"),
+                            dict(step="all"),
+                        ]
+                    )
+                ),
+                rangeslider=dict(visible=True),
+                type="date",
+            )
         )
 
-        if period_interval == "Daily":
-            interval = "1d"
-        elif period_interval == "Weekly":
-            interval = "1w"
-        elif period_interval == "Monthly":
-            interval = "1M"
+        # Increase height of graph
+        fig1.update_layout(height=600)
 
-# Display metrics for active and total cases
-active_frecords = filter_records.unique("PID").sort("Timestamp")
-active_sam = active_frecords.filter(pl.col("Malnutrition Status") == "SEVERE").height
-active_mam = active_frecords.filter(pl.col("Malnutrition Status") == "MODERATE").height
-active_normal = active_frecords.filter(pl.col("Malnutrition Status") == "NORMAL").height
-active_dead = active_frecords.filter(pl.col("Malnutrition Status") == "DEAD").height
-active_default = active_frecords.filter(
-    pl.col("Malnutrition Status") == "DEFAULT"
-).height
+        # Display graph
+        st.divider()
+        st.header(f"{graph_choice} over Time")
+        st.plotly_chart(fig1, use_container_width=True)
 
-total_frecords = filter_records.sort("Timestamp")
-total_sam = total_frecords.filter(pl.col("Malnutrition Status") == "SEVERE").height
-total_mam = total_frecords.filter(pl.col("Malnutrition Status") == "MODERATE").height
-total_normal = total_frecords.filter(pl.col("Malnutrition Status") == "NORMAL").height
-total_dead = total_frecords.filter(pl.col("Malnutrition Status") == "DEAD").height
-total_default = total_frecords.filter(pl.col("Malnutrition Status") == "DEFAULT").height
+    else:
+        st.warning("No records.")
 
-# Display active and total number of patients
-st.header("Active and Total Number of Cases")
-r1c1, r1c2, r1c3, r1c4, r1c5 = st.columns(5)
-r1c1.metric(label="Active SAM", value=active_sam)
-r1c2.metric(label="Active MAM", value=active_mam)
-r1c3.metric(label="Active Normal", value=active_normal)
-r1c4.metric(label="Active Dead", value=active_dead)
-r1c5.metric(label="Active Default", value=active_default)
-
-r2c1, r2c2, r2c3, r2c4, r2c5 = st.columns(5)
-r2c1.metric(label="Total SAM", value=total_sam)
-r2c2.metric(label="Total MAM", value=total_mam)
-r2c3.metric(label="Total Normal", value=total_normal)
-r2c4.metric(label="Total Dead", value=total_dead)
-r2c5.metric(label="Total Default", value=total_default)
-
-
-filter_df = (
-    filter_records.select(["Timestamp", "Malnutrition Status"])
-    .with_columns(
-        [
-            ((pl.col("Malnutrition Status") == filter_stat) * 1).alias("Count"),
-            (pl.col("Timestamp").str.strptime(pl.Date, "%Y-%m-%d").alias("Timestamp")),
-        ]
-    )
-    .filter(pl.col("Count") == 1)
-).sort("Timestamp", descending=True)
-filter_dfu = filter_df.to_pandas()
-filter_dfu["Timestamp"] = pd.to_datetime(filter_dfu["Timestamp"])
-if not filter_dfu.empty:
-    filter_dfu = filter_dfu.resample(interval, on="Timestamp").sum().fillna(0)
-    # Remove zero values
-    filter_dfu = filter_dfu[filter_dfu["Count"] != 0]
-
-    # Calculate 4-week moving average
-    filter_dfu["MA"] = filter_dfu["Count"].rolling(window=4).mean()
-
-    # Display graph
-    fig1 = px.bar(
-        filter_dfu,
-        x=filter_dfu.index,
-        y="Count",
-        title=f"Number of {graph_choice} {period_interval}",
-        labels={
-            "Count": f"Number of {graph_choice}",
-            "Timestamp": f"{period_interval}",
-        },
-    )
-    # Add moving average line
-    fig1.add_scatter(x=filter_dfu.index, y=filter_dfu["MA"], mode="lines", name="MA")
-    fig1.update_layout(
-        xaxis=dict(
-            rangeselector=dict(
-                buttons=list(
-                    [
-                        dict(count=1, label="1m", step="month", stepmode="backward"),
-                        dict(count=6, label="6m", step="month", stepmode="backward"),
-                        dict(count=1, label="YTD", step="year", stepmode="todate"),
-                        dict(count=1, label="1y", step="year", stepmode="backward"),
-                        dict(step="all"),
-                    ]
-                )
-            ),
-            rangeslider=dict(visible=True),
-            type="date",
-        )
-    )
-
-    # Increase height of graph
-    fig1.update_layout(height=600)
-
-    # Display graph
-    st.divider()
-    st.header(f"{graph_choice} over Time")
-    st.plotly_chart(fig1, use_container_width=True)
-
-else:
-    st.warning("No records.")
-
-# Calculate top number of active graph choice cases by region, province, and municipality/city
+    # Calculate top number of active graph choice cases by region, province, and municipality/city

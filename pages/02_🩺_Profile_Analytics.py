@@ -6,7 +6,8 @@ import plotly.express as px
 import polars as pl
 import streamlit as st
 
-from load import classify_malnutrition, init_page, load_brand, load_ph_location_data
+from load import (classify_malnutrition, init_page, load_brand,
+                  load_ph_location_data)
 
 init_page(
     pg_title="Profile Analytics",
@@ -128,7 +129,8 @@ if "patient_names" not in st.session_state:
     st.session_state["patient_names"] = ""
 if "select_pdf" not in st.session_state:
     st.session_state["select_pdf"] = pl.DataFrame([{}])
-
+if "profile_found" not in st.session_state:
+    st.session_state["profile_found"] = False
 # global profile_data
 # global filtered_patient_data
 # global show_data_df
