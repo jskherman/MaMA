@@ -386,7 +386,7 @@ if st.session_state["profile_found"]:
     )
     precords = precords.with_columns(
         pl.struct(["Alive", "Default", "Edema", "MUAC (cm)", "Z-score"])
-        .apply(
+        .map_elements(
             lambda cols: classify_malnutrition(
                 cols["Alive"],
                 cols["Default"],
@@ -515,7 +515,7 @@ if st.session_state["profile_found"]:
         )
 
     show_records = precords.drop(
-        columns=[
+        [
             "ID",
             "PID",
             "Sex",
