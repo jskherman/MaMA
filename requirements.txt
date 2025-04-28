@@ -1,4 +1,5 @@
-streamlit==1.21.0
+# streamlit==1.21.0
+streamlit
 polars[all]
 pandas
 plotly
