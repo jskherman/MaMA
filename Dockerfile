@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
 
 COPY . .
 
+RUN uv init
+RUN uv venv
 RUN uv pip install -r requirements.txt
 
 EXPOSE 8501
