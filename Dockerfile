@@ -1,7 +1,7 @@
 # app/Dockerfile
 
 # FROM python:3.9-slim
-FROM ghcr.io/astral-sh/uv:python3.9-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
 
