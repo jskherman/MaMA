@@ -119,7 +119,7 @@ else:
     patient_records = st.session_state["pl_records"]
     filter_records = patient_records.with_columns(
         pl.struct(["Alive", "Default", "Edema", "MUAC (cm)", "Z-score"])
-        .apply(
+        .map_elements(
             lambda cols: classify_malnutrition(
                 cols["Alive"],
                 cols["Default"],
